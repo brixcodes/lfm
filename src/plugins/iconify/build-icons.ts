@@ -1,9 +1,7 @@
 import { promises as fs } from 'node:fs'
-import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'url'
-
-// lksanlksa
+import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
 
@@ -89,14 +87,13 @@ const target = join(dirname(fileURLToPath(import.meta.url)), 'icons.css')
         prefix: source.prefix,
       })
 
-      // IMPORTANT: traiter les icônes avec for...of + await, pas forEach async
-      for (const [name, type] of iconSet.entries()) {
-        if (type !== 'icon') continue
+      await iconSet.forEach(async (name, type) => {
+        if (type !== 'icon') return
         const svg = iconSet.toSVG(name)
 
         if (!svg) {
           iconSet.remove(name)
-          continue
+          return
         }
 
         try {
@@ -115,11 +112,11 @@ const target = join(dirname(fileURLToPath(import.meta.url)), 'icons.css')
         } catch (err) {
           console.error(`Error parsing ${name} from ${source.dir}:`, err)
           iconSet.remove(name)
-          continue
+          return
         }
 
         iconSet.fromSVG(name, svg)
-      }
+      })
 
       allIcons.push(iconSet.export())
     }
