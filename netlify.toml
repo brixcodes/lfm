@@ -1,1 +1,2 @@
--e "[build.environment]\n  NODE_VERSION = \"20\"" 
+[build.environment]
+NODE_VERSION = "20"
