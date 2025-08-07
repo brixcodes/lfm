@@ -3,6 +3,8 @@ import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'url'
 
+// lksanlksa
+
 const require = createRequire(import.meta.url)
 
 import { cleanupSVG, importDirectory, isEmptyColor, parseColors, runSVGO } from '@iconify/tools'
@@ -87,13 +89,14 @@ const target = join(dirname(fileURLToPath(import.meta.url)), 'icons.css')
         prefix: source.prefix,
       })
 
-      await iconSet.forEach(async (name, type) => {
-        if (type !== 'icon') return
+      // IMPORTANT: traiter les icônes avec for...of + await, pas forEach async
+      for (const [name, type] of iconSet.entries()) {
+        if (type !== 'icon') continue
         const svg = iconSet.toSVG(name)
 
         if (!svg) {
           iconSet.remove(name)
-          return
+          continue
         }
 
         try {
@@ -112,11 +115,11 @@ const target = join(dirname(fileURLToPath(import.meta.url)), 'icons.css')
         } catch (err) {
           console.error(`Error parsing ${name} from ${source.dir}:`, err)
           iconSet.remove(name)
-          return
+          continue
         }
 
         iconSet.fromSVG(name, svg)
-      })
+      }
 
       allIcons.push(iconSet.export())
     }
