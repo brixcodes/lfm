@@ -12,6 +12,7 @@
  */
 import { promises as fs } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'url'
 
 // Installation: npm install --save-dev @iconify/tools @iconify/utils @iconify/json @iconify/iconify
 import { cleanupSVG, importDirectory, isEmptyColor, parseColors, runSVGO } from '@iconify/tools'
@@ -22,56 +23,35 @@ import { getIcons, getIconsCSS, stringToIcon } from '@iconify/utils'
  * Script configuration
  */
 interface BundleScriptCustomSVGConfig {
-
-  // Path to SVG files
   dir: string
-
-  // True if icons should be treated as monotone: colors replaced with currentColor
   monotone: boolean
-
-  // Icon set prefix
   prefix: string
 }
 
 interface BundleScriptCustomJSONConfig {
-
-  // Path to JSON file
   filename: string
-
-  // List of icons to import. If missing, all icons will be imported
   icons?: string[]
 }
 
 interface BundleScriptConfig {
-
-  // Custom SVG to import and bundle
   svg?: BundleScriptCustomSVGConfig[]
-
-  // Icons to bundled from @iconify/json packages
   icons?: string[]
-
-  // List of JSON files to bundled
-  // Entry can be a string, pointing to filename or a BundleScriptCustomJSONConfig object (see type above)
-  // If entry is a string or object without 'icons' property, an entire JSON file will be bundled
   json?: (string | BundleScriptCustomJSONConfig)[]
 }
 
 const sources: BundleScriptConfig = {
-
   svg: [
     // {
     //   dir: 'src/assets/images/iconify-svg',
     //   monotone: true,
     //   prefix: 'custom',
     // },
-
     // {
     //   dir: 'emojis',
     //   monotone: false,
     //   prefix: 'emoji',
     // },
   ],
-
   icons: [
     // 'mdi:home',
     // 'mdi:account',
@@ -80,56 +60,41 @@ const sources: BundleScriptConfig = {
     // 'octicon:book-24',
     // 'octicon:code-square-24',
   ],
-
   json: [
-    // Custom JSON file
-    // 'json/gg.json',
-
-    // Iconify JSON file (@iconify/json is a package name, /json/ is directory where files are, then filename)
-    require.resolve('@iconify-json/ri/icons.json'),
-
-    {
-      filename: require.resolve('@iconify-json/bxl/icons.json'),
-      icons: [
-        'facebook',
-        'twitter',
-        'github',
-        'google',
-        'linkedin',
-      ],
-    },
-
-    // Custom file with only few icons
-    // {
-    //   filename: require.resolve('@iconify-json/line-md/icons.json'),
-    //   icons: [
-    //     'home-twotone-alt',
-    //     'github',
-    //     'document-list',
-    //     'document-code',
-    //     'image-twotone',
-    //   ],
-    // },
+    // We will fill this dynamically in the async function below
   ],
 }
 
 // File to save bundle to
-const target = join(__dirname, 'icons.css')
+const target = join(dirname(fileURLToPath(import.meta.url)), 'icons.css')
 
 /**
  * Do stuff!
  */
-
 ;(async function () {
+  // Resolve JSON file paths dynamically (no require.resolve)
+  const riJsonPath = fileURLToPath(await import.meta.resolve('@iconify-json/ri/icons.json'))
+  const bxlJsonPath = fileURLToPath(await import.meta.resolve('@iconify-json/bxl/icons.json'))
+
+  // Fill sources.json dynamically
+  sources.json!.push(riJsonPath)
+  sources.json!.push({
+    filename: bxlJsonPath,
+    icons: [
+      'facebook',
+      'twitter',
+      'github',
+      'google',
+      'linkedin',
+    ],
+  })
+
   // Create directory for output if missing
   const dir = dirname(target)
   try {
-    await fs.mkdir(dir, {
-      recursive: true,
-    })
-  }
-  catch (err) {
-    //
+    await fs.mkdir(dir, { recursive: true })
+  } catch {
+    // ignore
   }
 
   const allIcons: IconifyJSON[] = []
@@ -137,15 +102,15 @@ const target = join(__dirname, 'icons.css')
   /**
    * Convert sources.icons to sources.json
    */
-  if (sources.icons) {
+  if (sources.icons && sources.icons.length > 0) {
     const sourcesJSON = sources.json ? sources.json : (sources.json = [])
 
     // Sort icons by prefix
     const organizedList = organizeIconsList(sources.icons)
 
     for (const prefix in organizedList) {
-      const filename = require.resolve(`@iconify/json/json/${prefix}.json`)
-
+      // Resolve path dynamically
+      const filename = fileURLToPath(await import.meta.resolve(`@iconify/json/json/${prefix}.json`))
       sourcesJSON.push({
         filename,
         icons: organizedList[prefix],
@@ -173,8 +138,7 @@ const target = join(__dirname, 'icons.css')
 
         // Collect filtered icons
         allIcons.push(filteredContent)
-      }
-      else {
+      } else {
         // Collect all icons from the JSON file
         allIcons.push(content)
       }
@@ -195,8 +159,7 @@ const target = join(__dirname, 'icons.css')
 
       // Validate, clean up, fix palette, etc.
       await iconSet.forEach(async (name, type) => {
-        if (type !== 'icon')
-          return
+        if (type !== 'icon') return
 
         // Get SVG instance for parsing
         const svg = iconSet.toSVG(name)
@@ -204,18 +167,14 @@ const target = join(__dirname, 'icons.css')
         if (!svg) {
           // Invalid icon
           iconSet.remove(name)
-
           return
         }
 
         // Clean up and optimise icons
         try {
-          // Clean up icon code
           await cleanupSVG(svg)
 
           if (source.monotone) {
-            // Replace color with currentColor, add if missing
-            // If icon is not monotone, remove this code
             await parseColors(svg, {
               defaultColor: 'currentColor',
               callback: (attr, colorStr, color) => {
@@ -224,14 +183,10 @@ const target = join(__dirname, 'icons.css')
             })
           }
 
-          // Optimise
           await runSVGO(svg)
-        }
-        catch (err) {
-          // Invalid icon
+        } catch (err) {
           console.error(`Error parsing ${name} from ${source.dir}:`, err)
           iconSet.remove(name)
-
           return
         }
 
@@ -239,18 +194,17 @@ const target = join(__dirname, 'icons.css')
         iconSet.fromSVG(name, svg)
       })
 
-      // Collect the SVG icon
       allIcons.push(iconSet.export())
     }
   }
 
   // Generate CSS from collected icons
   const cssContent = allIcons
-    .map(iconSet => getIconsCSS(
-      iconSet,
-      Object.keys(iconSet.icons),
-      { iconSelector: '.{prefix}-{name}' },
-    ))
+    .map(iconSet =>
+      getIconsCSS(iconSet, Object.keys(iconSet.icons), {
+        iconSelector: '.{prefix}-{name}',
+      }),
+    )
     .join('\n')
 
   // Save the CSS to a file
@@ -269,17 +223,13 @@ function organizeIconsList(icons: string[]): Record<string, string[]> {
 
   icons.forEach(icon => {
     const item = stringToIcon(icon)
-
-    if (!item)
-      return
+    if (!item) return
 
     const prefix = item.prefix
     const prefixList = sorted[prefix] ? sorted[prefix] : (sorted[prefix] = [])
 
     const name = item.name
-
-    if (!prefixList.includes(name))
-      prefixList.push(name)
+    if (!prefixList.includes(name)) prefixList.push(name)
   })
 
   return sorted
