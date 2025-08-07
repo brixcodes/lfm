@@ -77,9 +77,9 @@ const sources: BundleScriptConfig = {
   json: [
     // Custom JSON file
     // 'json/gg.json',
-    (await import('@iconify-json/ri/icons.json')).resolve(),
+    await import.meta.resolve('@iconify-json/ri/icons.json'),
     {
-      filename: (await import('@iconify-json/bxl/icons.json')).resolve(),
+      filename: await import.meta.resolve('@iconify-json/bxl/icons.json'),
       icons: [
         'facebook',
         'twitter',
@@ -133,7 +133,7 @@ const target = join(__dirname, 'icons.css')
     const organizedList = organizeIconsList(sources.icons)
 
     for (const prefix in organizedList) {
-      const filename = (await import(`@iconify/json/json/${prefix}.json`)).resolve()
+      const filename = await import.meta.resolve(`@iconify/json/json/${prefix}.json`)
 
       sourcesJSON.push({
         filename,
