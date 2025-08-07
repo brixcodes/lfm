@@ -22,7 +22,6 @@ import { getIcons, getIconsCSS, stringToIcon } from '@iconify/utils'
  * Script configuration
  */
 interface BundleScriptCustomSVGConfig {
-
   // Path to SVG files
   dir: string
 
@@ -34,7 +33,6 @@ interface BundleScriptCustomSVGConfig {
 }
 
 interface BundleScriptCustomJSONConfig {
-
   // Path to JSON file
   filename: string
 
@@ -43,7 +41,6 @@ interface BundleScriptCustomJSONConfig {
 }
 
 interface BundleScriptConfig {
-
   // Custom SVG to import and bundle
   svg?: BundleScriptCustomSVGConfig[]
 
@@ -57,21 +54,18 @@ interface BundleScriptConfig {
 }
 
 const sources: BundleScriptConfig = {
-
   svg: [
     // {
     //   dir: 'src/assets/images/iconify-svg',
     //   monotone: true,
     //   prefix: 'custom',
     // },
-
     // {
     //   dir: 'emojis',
     //   monotone: false,
     //   prefix: 'emoji',
     // },
   ],
-
   icons: [
     // 'mdi:home',
     // 'mdi:account',
@@ -80,16 +74,12 @@ const sources: BundleScriptConfig = {
     // 'octicon:book-24',
     // 'octicon:code-square-24',
   ],
-
   json: [
     // Custom JSON file
     // 'json/gg.json',
-
-    // Iconify JSON file (@iconify/json is a package name, /json/ is directory where files are, then filename)
-    require.resolve('@iconify-json/ri/icons.json'),
-
+    (await import('@iconify-json/ri/icons.json')).resolve(),
     {
-      filename: require.resolve('@iconify-json/bxl/icons.json'),
+      filename: (await import('@iconify-json/bxl/icons.json')).resolve(),
       icons: [
         'facebook',
         'twitter',
@@ -98,7 +88,6 @@ const sources: BundleScriptConfig = {
         'linkedin',
       ],
     },
-
     // Custom file with only few icons
     // {
     //   filename: require.resolve('@iconify-json/line-md/icons.json'),
@@ -144,7 +133,7 @@ const target = join(__dirname, 'icons.css')
     const organizedList = organizeIconsList(sources.icons)
 
     for (const prefix in organizedList) {
-      const filename = require.resolve(`@iconify/json/json/${prefix}.json`)
+      const filename = (await import(`@iconify/json/json/${prefix}.json`)).resolve()
 
       sourcesJSON.push({
         filename,
